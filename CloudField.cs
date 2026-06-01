@@ -38,7 +38,7 @@ public readonly struct CloudInteraction
 
 public sealed class CloudField
 {
-    // Şimdilik bulutları basit dikdörtgen parçalarla temsil ediyoruz.
+    // Bulutları birkaç piksel-art kabarcık parçasıyla çiziyoruz.
     private const int CloudCount = 9;
     private readonly Cloud[] _clouds = new Cloud[CloudCount];
     private readonly Random _random = new(17);
@@ -121,20 +121,13 @@ public sealed class CloudField
 
     public void Draw(SpriteBatch spriteBatch, Texture2D pixel, float aircraftAltitude, float verticalDepthCue)
     {
-        // Her bulut birkaç dikdörtgen üst üste çizilerek daha dolgun görünür.
+        // Her bulut tipi aynı temel şekli kullanır, renk ve boyutla farklılaşır.
         foreach (var cloud in _clouds)
         {
             var body = GetVisualBounds(cloud, aircraftAltitude, verticalDepthCue);
             var colors = GetCloudColors(cloud, aircraftAltitude);
 
-            if (cloud.Size.X > 78)
-                DrawCloudShadow(spriteBatch, pixel, body);
-
-            spriteBatch.Draw(pixel, new Rectangle(body.X + 8, body.Y, body.Width - 16, body.Height), colors.Light);
-            spriteBatch.Draw(pixel, new Rectangle(body.X, body.Y + 8, body.Width, body.Height - 16), colors.Light);
-            spriteBatch.Draw(pixel, new Rectangle(body.X + body.Width / 3, body.Y - 6, body.Width / 3, 12), colors.Mid);
-            spriteBatch.Draw(pixel, new Rectangle(body.X + 12, body.Y + body.Height / 2, body.Width - 24, body.Height / 3), colors.Mid);
-            spriteBatch.Draw(pixel, new Rectangle(body.X + 8, body.Y + body.Height - 8, body.Width - 16, 8), colors.Shade);
+            DrawPixelCloud(spriteBatch, pixel, body, colors, cloud.Type);
 
             if (cloud.LightningTimer > 0f)
                 DrawLightning(spriteBatch, pixel, body);
@@ -271,10 +264,10 @@ public sealed class CloudField
     {
         var colors = cloud.Type switch
         {
-            CloudType.GreyCloud => new CloudColors(new Color(176, 184, 176), new Color(144, 152, 152), new Color(104, 120, 120)),
-            CloudType.DarkCloud => new CloudColors(new Color(112, 120, 128), new Color(80, 88, 104), new Color(48, 56, 72)),
-            CloudType.StormCloud => new CloudColors(new Color(80, 88, 112), new Color(48, 56, 88), new Color(24, 32, 56)),
-            _ => new CloudColors(new Color(224, 248, 216), new Color(208, 232, 200), new Color(184, 216, 192)),
+            CloudType.GreyCloud => new CloudColors(new Color(196, 204, 196), new Color(156, 168, 164), new Color(108, 128, 128), new Color(228, 236, 224)),
+            CloudType.DarkCloud => new CloudColors(new Color(132, 144, 152), new Color(88, 100, 116), new Color(48, 58, 76), new Color(164, 174, 180)),
+            CloudType.StormCloud => new CloudColors(new Color(98, 108, 136), new Color(58, 68, 104), new Color(24, 32, 62), new Color(130, 142, 166)),
+            _ => new CloudColors(new Color(236, 248, 232), new Color(204, 230, 216), new Color(154, 196, 204), new Color(252, 252, 236)),
         };
 
         var altitudeCenter = (cloud.LowerAltitude + cloud.UpperAltitude) / 2f;
@@ -284,7 +277,8 @@ public sealed class CloudField
         return new CloudColors(
             ScaleColor(colors.Light, brightness),
             ScaleColor(colors.Mid, brightness),
-            ScaleColor(colors.Shade, brightness));
+            ScaleColor(colors.Shade, brightness),
+            ScaleColor(colors.Highlight, brightness));
     }
 
     private static Vector2 GetCenter(Rectangle rectangle)
@@ -296,7 +290,9 @@ public sealed class CloudField
     {
         var altitudeCenter = (cloud.LowerAltitude + cloud.UpperAltitude) / 2f;
         var altitudeDifference = altitudeCenter - aircraftAltitude;
-        var scale = MathHelper.Clamp(1f + altitudeDifference / 9000f + verticalDepthCue * 0.08f, 0.72f, 1.24f);
+        var altitudeLayerScale = MathHelper.Lerp(1f, 0.78f, MathHelper.Clamp(aircraftAltitude / 30000f, 0f, 1f));
+        var relativeScale = 1f + altitudeDifference / 14000f + verticalDepthCue * 0.06f;
+        var scale = MathHelper.Clamp(relativeScale * altitudeLayerScale, 0.58f, 1.18f);
         var width = (int)(cloud.Size.X * scale);
         var height = (int)(cloud.Size.Y * scale);
         var center = cloud.Bounds.Center;
@@ -307,10 +303,55 @@ public sealed class CloudField
 
     private static void DrawCloudShadow(SpriteBatch spriteBatch, Texture2D pixel, Rectangle body)
     {
-        var shadowColor = new Color(48, 64, 64, 120);
+        var shadowColor = new Color(36, 48, 52, 90);
 
-        // Büyük bulutların altındaki koyu taban, bulutu zeminden ayırır.
-        spriteBatch.Draw(pixel, new Rectangle(body.X + 10, body.Bottom - 5, body.Width - 20, 7), shadowColor);
+        // Büyük bulutların altındaki yumuşak taban, bulutu zeminden ayırır.
+        spriteBatch.Draw(pixel, new Rectangle(body.X + body.Width / 8, body.Bottom - 4, body.Width * 3 / 4, 5), shadowColor);
+    }
+
+    private static void DrawPixelCloud(SpriteBatch spriteBatch, Texture2D pixel, Rectangle body, CloudColors colors, CloudType type)
+    {
+        var isLarge = body.Width > 84;
+        var isStorm = type is CloudType.DarkCloud or CloudType.StormCloud;
+
+        if (isLarge || isStorm)
+            DrawCloudShadow(spriteBatch, pixel, body);
+
+        var baseY = body.Y + body.Height * 5 / 8;
+        var left = body.X + body.Width / 10;
+        var right = body.Right - body.Width / 10;
+
+        // Alt taban, buluta yatay ve pofuduk bir siluet verir.
+        DrawPixelEllipse(spriteBatch, pixel, body.X + body.Width / 2, baseY, body.Width / 2, body.Height / 4, colors.Mid);
+        DrawPixelEllipse(spriteBatch, pixel, body.X + body.Width / 3, baseY + body.Height / 10, body.Width / 3, body.Height / 5, colors.Shade);
+        DrawPixelEllipse(spriteBatch, pixel, body.X + body.Width * 2 / 3, baseY + body.Height / 12, body.Width / 3, body.Height / 5, colors.Shade);
+
+        // Üst kabarcıklar, kare bulut hissini kırar.
+        DrawPixelEllipse(spriteBatch, pixel, left, body.Y + body.Height / 2, body.Width / 4, body.Height / 3, colors.Light);
+        DrawPixelEllipse(spriteBatch, pixel, body.X + body.Width / 3, body.Y + body.Height / 3, body.Width / 4, body.Height / 2, colors.Light);
+        DrawPixelEllipse(spriteBatch, pixel, body.X + body.Width / 2, body.Y + body.Height / 4, body.Width / 3, body.Height / 2, colors.Light);
+        DrawPixelEllipse(spriteBatch, pixel, body.X + body.Width * 2 / 3, body.Y + body.Height / 3, body.Width / 4, body.Height / 2, colors.Light);
+        DrawPixelEllipse(spriteBatch, pixel, right, body.Y + body.Height / 2, body.Width / 5, body.Height / 3, colors.Light);
+
+        // Küçük parlaklık parçaları, retro hacim hissi verir.
+        spriteBatch.Draw(pixel, new Rectangle(body.X + body.Width / 3, body.Y + body.Height / 4, body.Width / 5, 3), colors.Highlight);
+        spriteBatch.Draw(pixel, new Rectangle(body.X + body.Width / 2, body.Y + body.Height / 5, body.Width / 6, 3), colors.Highlight);
+
+        if (isStorm)
+            spriteBatch.Draw(pixel, new Rectangle(body.X + body.Width / 5, body.Bottom - body.Height / 4, body.Width * 3 / 5, body.Height / 6), colors.Shade);
+    }
+
+    private static void DrawPixelEllipse(SpriteBatch spriteBatch, Texture2D pixel, int centerX, int centerY, int halfWidth, int halfHeight, Color color)
+    {
+        if (halfWidth < 4 || halfHeight < 3)
+            return;
+
+        // Gerçek daire yerine basamaklı dikdörtgenler kullanarak piksel-art oval çiziyoruz.
+        spriteBatch.Draw(pixel, new Rectangle(centerX - halfWidth / 2, centerY - halfHeight, halfWidth, Math.Max(2, halfHeight / 3)), color);
+        spriteBatch.Draw(pixel, new Rectangle(centerX - halfWidth * 3 / 4, centerY - halfHeight * 2 / 3, halfWidth * 3 / 2, Math.Max(2, halfHeight / 3)), color);
+        spriteBatch.Draw(pixel, new Rectangle(centerX - halfWidth, centerY - halfHeight / 3, halfWidth * 2, Math.Max(3, halfHeight * 2 / 3)), color);
+        spriteBatch.Draw(pixel, new Rectangle(centerX - halfWidth * 3 / 4, centerY + halfHeight / 3, halfWidth * 3 / 2, Math.Max(2, halfHeight / 3)), color);
+        spriteBatch.Draw(pixel, new Rectangle(centerX - halfWidth / 2, centerY + halfHeight * 2 / 3, halfWidth, Math.Max(2, halfHeight / 3)), color);
     }
 
     private static void DrawLightning(SpriteBatch spriteBatch, Texture2D pixel, Rectangle body)
@@ -373,15 +414,17 @@ public sealed class CloudField
 
     private readonly struct CloudColors
     {
-        public CloudColors(Color light, Color mid, Color shade)
+        public CloudColors(Color light, Color mid, Color shade, Color highlight)
         {
             Light = light;
             Mid = mid;
             Shade = shade;
+            Highlight = highlight;
         }
 
         public Color Light { get; }
         public Color Mid { get; }
         public Color Shade { get; }
+        public Color Highlight { get; }
     }
 }

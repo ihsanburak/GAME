@@ -33,6 +33,9 @@ public sealed class RetroHud
         float plannedFuelAtDestination,
         int plannedCruiseAltitude,
         bool showRotateWarning,
+        bool showTcasWarning,
+        string tcasCommand,
+        string gameOverReason,
         bool isGameOver,
         FlightPhase flightPhase)
     {
@@ -72,8 +75,15 @@ public sealed class RetroHud
         if (showSeatBeltWarning)
             PixelTextRenderer.Draw(spriteBatch, pixel, "BELT", new Vector2(320, hudBounds.Y + 54), warningColor, 2);
 
+        if (showTcasWarning)
+            PixelTextRenderer.Draw(spriteBatch, pixel, $"TCAS {tcasCommand}", new Vector2(320, hudBounds.Y + 54), warningColor, 2);
+
         if (isGameOver)
+        {
             PixelTextRenderer.Draw(spriteBatch, pixel, "GAME OVER", new Vector2(448, hudBounds.Y + 54), warningColor, 2);
+            if (!string.IsNullOrEmpty(gameOverReason))
+                PixelTextRenderer.Draw(spriteBatch, pixel, $"CAUSE {gameOverReason}", new Vector2(320, hudBounds.Y + 55), warningColor, 1);
+        }
 
         if (showRotateWarning)
             DrawRotateWarning(spriteBatch, pixel, screen);

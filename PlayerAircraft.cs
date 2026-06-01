@@ -90,6 +90,7 @@ public sealed class PlayerAircraft
         var shadow = new Color(128, 152, 160);
         var dark = new Color(56, 72, 88);
         var accent = new Color(248, 184, 64);
+        var windowBlue = new Color(66, 88, 112);
         var highWing = new Color(244, 248, 232);
         var lowWing = new Color(160, 176, 176);
 
@@ -109,6 +110,8 @@ public sealed class PlayerAircraft
         spriteBatch.Draw(pixel, new Rectangle(centerX + 1, rightWingY, rightWingLength, 8), rightWingColor);
         spriteBatch.Draw(pixel, new Rectangle(centerX - leftWingLength + 8, leftWingY - 4, 25, 4), leftWingColor);
         spriteBatch.Draw(pixel, new Rectangle(centerX + rightWingLength - 33, rightWingY - 4, 25, 4), rightWingColor);
+        spriteBatch.Draw(pixel, new Rectangle(centerX - leftWingLength - 4, leftWingY - 2, 5, 12), accent);
+        spriteBatch.Draw(pixel, new Rectangle(centerX + rightWingLength - 1, rightWingY - 2, 5, 12), accent);
 
         // Motorlar kanat altında küçük koyu kapsüller olarak gösterilir.
         spriteBatch.Draw(pixel, new Rectangle(centerX - 28, leftWingY + 8, 10, 8), dark);
@@ -125,10 +128,7 @@ public sealed class PlayerAircraft
 
         // Kokpit camı ve pencere çizgisi ölçeğe rağmen uçağın yönünü belli eder.
         spriteBatch.Draw(pixel, new Rectangle(centerX - 5, body.Y + 10 + noseOffset, 10, 3), dark);
-        spriteBatch.Draw(pixel, new Rectangle(centerX - 10, body.Y + 25, 3, 3), dark);
-        spriteBatch.Draw(pixel, new Rectangle(centerX - 4, body.Y + 26, 3, 3), dark);
-        spriteBatch.Draw(pixel, new Rectangle(centerX + 3, body.Y + 26, 3, 3), dark);
-        spriteBatch.Draw(pixel, new Rectangle(centerX + 9, body.Y + 25, 3, 3), dark);
+        DrawCabinWindows(spriteBatch, pixel, body, centerX, leftBank, rightBank, windowBlue);
 
         // Kuyruk ve yatay stabilize parçaları gövdenin arkasında okunur.
         spriteBatch.Draw(pixel, new Rectangle(centerX - 5, body.Bottom - 19 + tailOffset, 10, 18), accent);
@@ -163,5 +163,24 @@ public sealed class PlayerAircraft
             spriteBatch.Draw(pixel, new Rectangle(body.Center.X - 7, body.Y + 2, 14, 4), accent);
         else if (noseOffset > 1)
             spriteBatch.Draw(pixel, new Rectangle(body.Center.X - 9, body.Bottom - 5, 18, 4), accent);
+    }
+
+    private static void DrawCabinWindows(SpriteBatch spriteBatch, Texture2D pixel, Rectangle body, int centerX, bool leftBank, bool rightBank, Color windowColor)
+    {
+        // Uçak yatınca bir taraftaki yolcu pencereleri daha belirgin görünür.
+        var leftWindowWidth = rightBank ? 4 : 3;
+        var rightWindowWidth = leftBank ? 4 : 3;
+        var leftX = centerX - 11;
+        var rightX = centerX + 7;
+
+        for (var i = 0; i < 4; i++)
+        {
+            var y = body.Y + 23 + i * 5;
+            spriteBatch.Draw(pixel, new Rectangle(leftX, y, leftWindowWidth, 2), windowColor);
+            spriteBatch.Draw(pixel, new Rectangle(rightX, y, rightWindowWidth, 2), windowColor);
+        }
+
+        spriteBatch.Draw(pixel, new Rectangle(centerX - 4, body.Y + 19, 3, 2), windowColor);
+        spriteBatch.Draw(pixel, new Rectangle(centerX + 2, body.Y + 19, 3, 2), windowColor);
     }
 }
